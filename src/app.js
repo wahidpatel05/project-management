@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes.js";
 import healthcheckRouter from "./routes/healthcheck.routes.js";
 
+import { errorMiddleware } from "./middlewares/error.middleware.js";
+
 const app = express();
 
 // Basic configurations
@@ -27,5 +29,6 @@ app.use("/api/v1/healthcheck", healthcheckRouter);
 app.get("/", (req, res) => {
   res.send("Hello Wahid");
 });
+app.use(errorMiddleware);
 
 export default app;
