@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -114,4 +115,57 @@ const login = asyncHandler (async(req, res) =>{
 
 })
 
-export { registerUser, login };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized request");
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+    if (!user || user.refreshToken !== incomingRefreshToken) {
+      throw new ApiError(401, "Invalid refresh token");
+    }
+
+    const accessToken = user.generateAccessToken();
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { accessToken },
+          "Access token refreshed successfully"
+        )
+      );
+  } catch (error) {
+    throw new ApiError(401, "Invalid refresh token");
+  }
+});
+
+const logout = asyncHandler(async (req, res) => {
+  // optional: clear refreshToken in DB
+  // await User.findByIdAndUpdate(req.user?._id, { $unset: { refreshToken: 1 } });
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  };
+
+  return res
+    .status(200)
+    .clearCookie("refreshToken", cookieOptions)
+    .json(new ApiResponse(200, {}, "Logged out successfully"));
+});
+
+export { registerUser, login, refreshAccessToken, logout };
+
+
